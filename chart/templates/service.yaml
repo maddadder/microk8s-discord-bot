@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "microk8s-discord-bot.fullname" . }}
+  labels:
+    {{- include "microk8s-discord-bot.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "microk8s-discord-bot.selectorLabels" . | nindent 4 }}
