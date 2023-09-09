@@ -1,6 +1,11 @@
 using Discord;
 using Discord.Commands;
+using Discord.Interactions;
+using Discord.Net;
 using Discord.WebSocket;
+using discordBot.Services;
+using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json;
 using System;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -12,10 +17,11 @@ public class Bot
     private DiscordSocketClient _client;
     private CommandService _commands;
     private IServiceProvider _services;
-
+    private readonly AdventureBotReadService _adventureBotReadService;
     public Bot(IServiceProvider services)
     {
         _services = services;
+        _adventureBotReadService = services.GetRequiredService<AdventureBotReadService>();
     }
 
     public async Task RunBotAsync(string BotToken)
@@ -24,16 +30,15 @@ public class Bot
         _commands = new CommandService();
         // Initialize other services if needed.
 
-        await RegisterCommandsAsync();
-
         await _client.LoginAsync(TokenType.Bot, BotToken);
         await _client.StartAsync();
 
         // Listen for messages and handle commands.
         _client.Log += LogAsync;
         _client.Ready += ReadyAsync;
-        _client.MessageReceived += HandleCommandAsync;
+        _client.SlashCommandExecuted += SlashCommandHandler;
 
+        
         await Task.Delay(-1);
     }
 
@@ -43,41 +48,78 @@ public class Bot
         return Task.CompletedTask;
     }
 
-    private Task ReadyAsync()
+    private async Task ReadyAsync()
     {
         Console.WriteLine($"Logged in as {_client.CurrentUser.Username}");
-        return Task.CompletedTask;
-    }
-
-    private async Task RegisterCommandsAsync()
-    {
-        // Register your commands here.
-        // For example, you can use the [Command] attribute to mark methods as commands.
-        await _commands.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
-    }
-
-    private async Task HandleCommandAsync(SocketMessage arg)
-    {
-        if (arg is SocketUserMessage message)
+        // Let's do our global command
+        var globalCommand = new SlashCommandBuilder();
+        globalCommand.WithName("status");
+        globalCommand.WithDescription("Get the status of the bot");
+        globalCommand.AddOption("instanceid", ApplicationCommandOptionType.String, "The instanceid of the game", isRequired: true);
+        try
         {
-            Console.WriteLine($"Received message of type: {message.GetType().Name}");
-            
-            var context = new SocketCommandContext(_client, message);
-
-            if (message.Author.IsBot)
-                return;
-
-            int argPos = 0;
-            if (message.HasStringPrefix("!", ref argPos)) // Change the prefix as needed.
-            {
-                var result = await _commands.ExecuteAsync(context, argPos, _services);
-                if (!result.IsSuccess)
-                    Console.WriteLine(result.ErrorReason);
-            }
+            // With global commands we don't need the guild.
+            await _client.CreateGlobalApplicationCommandAsync(globalCommand.Build());
+            // Using the ready event is a simple implementation for the sake of the example. Suitable for testing and development.
+            // For a production bot, it is recommended to only run the CreateGlobalApplicationCommandAsync() once for each command.
         }
-        else
+        catch(HttpException exception)
         {
-            Console.WriteLine($"Received message of unknown type: {arg.GetType().Name}");
+            // If our command was invalid, we should catch an ApplicationCommandException. This exception contains the path of the error as well as the error message. You can serialize the Error field in the exception to get a visual of where your error is.
+            var json = JsonConvert.SerializeObject(exception.Errors, Formatting.Indented);
+
+            // You can send this error somewhere or just print it to the console, for this example we're just going to print it.
+            Console.WriteLine(json);
+        }
+    }
+
+    private async Task SlashCommandHandler(SocketSlashCommand command)
+    {
+        Console.WriteLine($"Received message of type: {command.GetType().Name}");
+        // Check the name of the command
+        if (command.CommandName == "status")
+        {
+            // Handle the "status" command
+            var instanceid = command.Data.Options?.FirstOrDefault(o => o.Name == "instanceid")?.Value?.ToString();
+            if (!string.IsNullOrEmpty(instanceid))
+            {
+                var currentVote = "";
+                try
+                {
+                    Console.WriteLine($"Calling long running DiscordLoopGetAsync with instanceid '{instanceid}'");
+                    await command.RespondAsync("Getting Status...");
+                    var response = "Could not get status. An invalid instanceid was provided or the request timed out.";
+                    var votingCounter = await _adventureBotReadService.DiscordLoopGetAsync(instanceid);
+                    if(votingCounter.VoterList.Any())
+                    {
+                        currentVote = votingCounter.VoterList.First().Value;
+                    }
+                    if(!string.IsNullOrEmpty(votingCounter.PriorVote))
+                    {
+                        Console.WriteLine($"ReplyAsinc with the current vote");
+                        response = $"The prior vote was '{votingCounter.PriorVote}'. The current vote is '{currentVote}'";
+                    }
+                    var initialResponse = await command.GetOriginalResponseAsync(); // Get the initial response message
+                    await initialResponse.ModifyAsync(properties =>
+                    {
+                        properties.Content = response;
+                    });
+                }
+                catch(Exception e)
+                {
+                    Console.WriteLine("DiscordLoopGetAsync failed with the following error:");
+                    Console.WriteLine(e.Message);
+                    var initialResponse = await command.GetOriginalResponseAsync(); // Get the initial response message
+                    await initialResponse.ModifyAsync(properties =>
+                    {
+                        properties.Content = "Could not get the status. Please try again.";
+                    });
+                }
+            }
+            else
+            {
+                await command.RespondAsync("You must provide the instanceid in order to use this command.");
+            }
         }
     }
 }
