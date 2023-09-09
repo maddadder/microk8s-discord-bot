@@ -22,7 +22,7 @@ class Program
         {
             var httpClient = new HttpClient
             {
-                Timeout = TimeSpan.FromSeconds(300) // Set the desired timeout duration in seconds.
+                Timeout = TimeSpan.FromMinutes(11) // Set the desired timeout duration in seconds.
             };
             
             // Create and configure the service provider.
