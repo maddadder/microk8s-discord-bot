@@ -1,0 +1,645 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "My API",
+    "description": "My API description",
+    "license": {
+      "name": "MIT",
+      "url": "http://opensource.org/licenses/MIT"
+    },
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://playleenetadventurebot.azurewebsites.net/api"
+    }
+  ],
+  "paths": {
+    "/DiscordLoop/post": {
+      "post": {
+        "tags": [
+          "DiscordLoop"
+        ],
+        "summary": "Create one DiscordLoop",
+        "operationId": "DiscordLoop-Post",
+        "requestBody": {
+          "description": "The **InitializeDiscordLoopInput** parameter",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/initializeDiscordLoopInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "A Check Status Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/checkStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/DiscordLoop/put/{instanceId}": {
+      "put": {
+        "tags": [
+          "DiscordLoop"
+        ],
+        "summary": "Put one DiscordLoop",
+        "operationId": "DiscordLoop-Put",
+        "parameters": [
+          {
+            "name": "instanceId",
+            "in": "path",
+            "description": "The **instanceId** parameter",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "The **DiscordLoopInput** parameter",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/discordLoopInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The OK response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/DiscordLoop/get/{instanceId}": {
+      "get": {
+        "tags": [
+          "DiscordLoop"
+        ],
+        "summary": "Get one DiscordLoop",
+        "operationId": "DiscordLoop-Get",
+        "parameters": [
+          {
+            "name": "instanceId",
+            "in": "path",
+            "description": "The **instanceId** parameter",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The OK response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/discordVotingCounter"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/GameEntry/search/{partitionKey}/{GameEntryName}": {
+      "get": {
+        "tags": [
+          "GameEntry"
+        ],
+        "summary": "Search each GameEntry by name",
+        "operationId": "GameEntry-Search",
+        "parameters": [
+          {
+            "name": "partitionKey",
+            "in": "path",
+            "description": "The **partitionKey** parameter",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "GameEntryName",
+            "in": "path",
+            "description": "The **name** parameter",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search each GameEntry by name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/gameEntry"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/GameEntry/get/{partitionKey}/{GameEntryId}": {
+      "get": {
+        "tags": [
+          "GameEntry"
+        ],
+        "summary": "Retrieve one GameEntry",
+        "operationId": "GameEntry-Get",
+        "parameters": [
+          {
+            "name": "partitionKey",
+            "in": "path",
+            "description": "The **partitionKey** parameter",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "GameEntryId",
+            "in": "path",
+            "description": "The **GameEntryId** parameter",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The OK response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/gameEntry"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/GameLoop/post": {
+      "post": {
+        "tags": [
+          "GameLoop"
+        ],
+        "summary": "Create one GameLoop",
+        "operationId": "GameLoop-Post",
+        "requestBody": {
+          "description": "The **InitializeGameLoopInput** parameter",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/initializeGameLoopInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "A Check Status Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/checkStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/GameLoop/put/{instanceId}": {
+      "put": {
+        "tags": [
+          "GameLoop"
+        ],
+        "summary": "Put one GameLoop",
+        "operationId": "GameLoop-Put",
+        "parameters": [
+          {
+            "name": "instanceId",
+            "in": "path",
+            "description": "The **instanceId** parameter",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "The **GameLoopInput** parameter",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/gameLoopInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "The OK response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/GameLoop/get/{instanceId}": {
+      "get": {
+        "tags": [
+          "GameLoop"
+        ],
+        "summary": "Get one GameLoop",
+        "operationId": "GameLoop-Get",
+        "parameters": [
+          {
+            "name": "instanceId",
+            "in": "path",
+            "description": "The **instanceId** parameter",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The OK response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/votingCounter"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/UserRegistration/post": {
+      "post": {
+        "tags": [
+          "UserRegistration"
+        ],
+        "summary": "Create one UserRegistration",
+        "operationId": "UserRegistration-Post",
+        "requestBody": {
+          "description": "The **UserRegistrationInput** parameter",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/userRegistrationInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "A Check Status Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/checkStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/UserRegistration/get/{instanceId}": {
+      "get": {
+        "tags": [
+          "UserRegistration"
+        ],
+        "summary": "Retrieve one UserRegistration",
+        "operationId": "UserRegistration-Get",
+        "parameters": [
+          {
+            "name": "instanceId",
+            "in": "path",
+            "description": "The **instanceId** parameter",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The OK response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "checkStatusResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "statusQueryGetUri": {
+            "type": "string"
+          },
+          "sendEventPostUri": {
+            "type": "string"
+          },
+          "terminatePostUri": {
+            "type": "string"
+          },
+          "purgeHistoryDeleteUri": {
+            "type": "string"
+          },
+          "restartPostUri": {
+            "type": "string"
+          },
+          "suspendPostUri": {
+            "type": "string"
+          },
+          "resumePostUri": {
+            "type": "string"
+          }
+        }
+      },
+      "discordLoopInput": {
+        "type": "object",
+        "properties": {
+          "subscriberId": {
+            "type": "string",
+            "nullable": true
+          },
+          "targetChannelId": {
+            "type": "string",
+            "nullable": true
+          },
+          "gameState": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "discordVotingCounter": {
+        "type": "object",
+        "properties": {
+          "priorVote": {
+            "type": "string",
+            "nullable": true
+          },
+          "voteCount": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
+          },
+          "voterList": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        }
+      },
+      "gameEntry": {
+        "required": [
+          "name",
+          "description",
+          "options",
+          "id"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "description": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/gameOption"
+            }
+          },
+          "id": {
+            "minLength": 1,
+            "type": "string",
+            "format": "uuid"
+          },
+          "__T": {
+            "type": "string"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modified": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "modifiedBy": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "gameLoopInput": {
+        "type": "object",
+        "properties": {
+          "subscriberId": {
+            "type": "string",
+            "nullable": true
+          },
+          "subscriberEmail": {
+            "type": "string",
+            "nullable": true
+          },
+          "gameState": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "gameOption": {
+        "required": [
+          "description",
+          "next"
+        ],
+        "type": "object",
+        "properties": {
+          "description": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "next": {
+            "minLength": 1,
+            "type": "string"
+          }
+        }
+      },
+      "initializeDiscordLoopInput": {
+        "type": "object",
+        "properties": {
+          "targetChannelId": {
+            "type": "string",
+            "nullable": true
+          },
+          "initialGameState": {
+            "type": "string",
+            "nullable": true
+          },
+          "baseUri": {
+            "type": "string",
+            "nullable": true
+          },
+          "instanceId": {
+            "type": "string",
+            "nullable": true
+          },
+          "gameDelay": {
+            "type": "string",
+            "format": "timespan",
+            "nullable": true
+          }
+        }
+      },
+      "initializeGameLoopInput": {
+        "type": "object",
+        "properties": {
+          "subscribers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "initialGameState": {
+            "type": "string",
+            "nullable": true
+          },
+          "baseUri": {
+            "type": "string",
+            "nullable": true
+          },
+          "instanceId": {
+            "type": "string",
+            "nullable": true
+          },
+          "gameDelay": {
+            "type": "string",
+            "format": "timespan",
+            "nullable": true
+          }
+        }
+      },
+      "userRegistrationInput": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "password": {
+            "type": "string",
+            "nullable": true
+          },
+          "baseUri": {
+            "type": "string",
+            "nullable": true
+          },
+          "instanceId": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "votingCounter": {
+        "type": "object",
+        "properties": {
+          "priorVote": {
+            "type": "string",
+            "nullable": true
+          },
+          "voteCount": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
+          },
+          "voterList": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        }
+      }
+    }
+  }
+}

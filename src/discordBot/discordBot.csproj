@@ -10,11 +10,22 @@
   <ItemGroup>
     <PackageReference Include="Discord.Net" Version="3.12.0" />
     <PackageReference Include="Discord.Net.Commands" Version="3.12.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
+    <PackageReference Include="NSwag.ApiDescription.Client" Version="13.18.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
   <ItemGroup>
     <None Update="config.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-
+  <ItemGroup>
+    <OpenApiReference Include="OpenAPIs\NSwagClientRead.json" CodeGenerator="NSwagCSharp" Namespace="Read">
+      <SourceUri>https://playleenetadventurebot.azurewebsites.net/api/swagger.json</SourceUri>
+      <ClassName>NSwagClientRead</ClassName>
+      <OutputPath>NSwagClientRead.cs</OutputPath>
+    </OpenApiReference>
+  </ItemGroup>
 </Project>

@@ -5,11 +5,18 @@ using System;
 using System.Reflection;
 using System.Threading.Tasks;
 
+namespace discordBot;
+
 public class Bot
 {
     private DiscordSocketClient _client;
     private CommandService _commands;
     private IServiceProvider _services;
+
+    public Bot(IServiceProvider services)
+    {
+        _services = services;
+    }
 
     public async Task RunBotAsync(string BotToken)
     {
