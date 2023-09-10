@@ -18,6 +18,7 @@ public class Bot
     private CommandService _commands;
     private IServiceProvider _services;
     private readonly AdventureBotReadService _adventureBotReadService;
+    private string priorInstanceId = string.Empty;
     public Bot(IServiceProvider services)
     {
         _services = services;
@@ -55,7 +56,7 @@ public class Bot
         var globalCommand = new SlashCommandBuilder();
         globalCommand.WithName("status");
         globalCommand.WithDescription("Get the status of the bot");
-        globalCommand.AddOption("instanceid", ApplicationCommandOptionType.String, "The instanceid of the game", isRequired: true);
+        globalCommand.AddOption("instanceid", ApplicationCommandOptionType.String, "The instanceid of the game", isRequired: false);
         try
         {
             // With global commands we don't need the guild.
@@ -81,8 +82,11 @@ public class Bot
         {
             // Handle the "status" command
             var instanceid = command.Data.Options?.FirstOrDefault(o => o.Name == "instanceid")?.Value?.ToString();
-            if (!string.IsNullOrEmpty(instanceid))
+            if (!string.IsNullOrEmpty(instanceid) || !string.IsNullOrEmpty(priorInstanceId))
             {
+                if(string.IsNullOrEmpty(instanceid)){
+                    instanceid = priorInstanceId;
+                }
                 var currentVote = "";
                 try
                 {
@@ -104,6 +108,7 @@ public class Bot
                     {
                         properties.Content = response;
                     });
+                    priorInstanceId = instanceid;
                 }
                 catch(Exception e)
                 {
@@ -114,6 +119,7 @@ public class Bot
                     {
                         properties.Content = "Could not get the status. Please try again.";
                     });
+                    priorInstanceId = string.Empty;
                 }
             }
             else
