@@ -2,13 +2,12 @@ using Discord;
 using Discord.Commands;
 using Discord.Interactions;
 using Discord.Net;
+using Discord.Rest;
 using Discord.WebSocket;
 using discordBot.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
-using System;
-using System.Reflection;
-using System.Threading.Tasks;
+using Read;
 
 namespace discordBot;
 
@@ -19,6 +18,9 @@ public class Bot
     private IServiceProvider _services;
     private readonly AdventureBotReadService _adventureBotReadService;
     private string priorInstanceId = string.Empty;
+    private RestInteractionMessage initialResponse;
+    private ulong priorMessageId = 0;
+    private DiscordVotingCounter votingCounter = null;
     public Bot(IServiceProvider services)
     {
         _services = services;
@@ -38,7 +40,7 @@ public class Bot
         _client.Log += LogAsync;
         _client.Ready += ReadyAsync;
         _client.SlashCommandExecuted += SlashCommandHandler;
-
+        _client.ReactionAdded += HandleReactionAsync;
         
         await Task.Delay(-1);
     }
@@ -73,7 +75,19 @@ public class Bot
             Console.WriteLine(json);
         }
     }
-
+    List<string> optionEmojis = new List<string>
+    {
+        "1️⃣", 
+        "2️⃣", 
+        "3️⃣", 
+        "4️⃣", 
+        "5️⃣", 
+        "6️⃣",
+        "7️⃣",
+        "8️⃣",
+        "9️⃣",
+        "🔟"
+    };
     private async Task SlashCommandHandler(SocketSlashCommand command)
     {
         Console.WriteLine($"Received message of type: {command.GetType().Name}");
@@ -93,7 +107,7 @@ public class Bot
                     Console.WriteLine($"Calling long running DiscordLoopGetAsync with instanceid '{instanceid}'");
                     await command.RespondAsync("Getting Status...");
                     var response = "Could not get status. An invalid instanceid was provided or the request timed out.";
-                    var votingCounter = await _adventureBotReadService.DiscordLoopGetAsync(instanceid);
+                    votingCounter = await _adventureBotReadService.DiscordLoopGetAsync(instanceid);
                     if(votingCounter.VoterList.Any())
                     {
                         currentVote = votingCounter.VoterList.First().Value;
@@ -101,14 +115,42 @@ public class Bot
                     if(!string.IsNullOrEmpty(votingCounter.PriorVote))
                     {
                         Console.WriteLine($"ReplyAsinc with the current vote");
-                        response = $"The prior vote was '{votingCounter.PriorVote}'. The current vote is '{currentVote}'";
+                        response = $"Please vote using the following reactions to advance the game";
                     }
-                    var initialResponse = await command.GetOriginalResponseAsync(); // Get the initial response message
-                    await initialResponse.ModifyAsync(properties =>
-                    {
-                        properties.Content = response;
-                    });
+                    initialResponse = await command.GetOriginalResponseAsync(); // Get the initial response message
+                    priorMessageId = initialResponse.Id;
                     priorInstanceId = instanceid;
+                    if(votingCounter.GameOptions.Any())
+                    {
+                        await initialResponse.ModifyAsync(properties =>
+                        {
+                            properties.Content = response;
+                        });
+                        foreach (var (index, option) in votingCounter.GameOptions.Select((value, index) => (index, value)))
+                        {
+                            if (index < optionEmojis.Count)
+                            {
+                                var emoji = optionEmojis[index];
+                                await initialResponse.AddReactionAsync(new Emoji(emoji));
+                            }
+                        }
+                    }
+                    else
+                    {
+                        await initialResponse.ModifyAsync(properties =>
+                        {
+                            properties.Content = "The game is over. Restarting...";
+                        });
+                        DiscordLoopInput input = new DiscordLoopInput()
+                        {
+                            GameState = "begin",
+                            SubscriberId = votingCounter.VoteInstanceId,
+                            TargetChannelId = votingCounter.TargetChannelId
+                        };
+                        await _adventureBotReadService.DiscordLoopPutAsync(priorInstanceId, input);
+                        voteCounts.Clear();
+                        totalVotes = 0;
+                    }
                 }
                 catch(Exception e)
                 {
@@ -126,6 +168,111 @@ public class Bot
             {
                 await command.RespondAsync("You must provide the instanceid in order to use this command.");
             }
+        }
+    }
+
+    private Dictionary<string, int> voteCounts = new Dictionary<string, int>();
+    private int totalVotes = 0;
+    private int requiredVotes = 1; // Adjust the required number of votes as needed
+    private Timer votingTimer;
+
+    private async Task HandleReactionAsync(Cacheable<IUserMessage, ulong> message, Cacheable<IMessageChannel, ulong> channel, SocketReaction reaction)
+    {
+        if (_client.GetUser(reaction.UserId).IsBot) return;
+
+        // Check if the reaction is added to the correct message
+        if (message.Id == priorMessageId)
+        {
+            var emojiName = reaction.Emote.Name;
+
+            // Check if the emoji is one of the valid options
+            if (optionEmojis.Contains(emojiName))
+            {
+                // Update the vote count for the emoji
+                if (!voteCounts.ContainsKey(emojiName))
+                {
+                    voteCounts[emojiName] = 1;
+                }
+                else
+                {
+                    voteCounts[emojiName]++;
+                }
+
+                totalVotes++;
+
+                // Start the timer when the first vote is cast
+                if (totalVotes == 1)
+                {
+                    StartVotingTimer();
+                }
+            }
+        }
+    }
+
+    private void StartVotingTimer()
+    {
+        // Start a timer to check if the required votes are reached after a certain period
+        votingTimer = new Timer(_ =>
+        {
+            // Check the votes and proceed asynchronously
+            Task.Run(async () =>
+            {
+                await CheckVotesAndProceed();
+            }).Wait(); // Wait for the async task to complete within the timer callback
+        }, null, TimeSpan.FromMinutes(5), TimeSpan.FromMilliseconds(-1)); // Adjust the timer duration as needed
+    }
+
+    private async Task CheckVotesAndProceed()
+    {
+        // Check if the required number of votes has been reached
+        if (totalVotes >= requiredVotes)
+        {
+            // Determine the winning options based on the vote counts
+            var maxVoteCount = voteCounts.Values.Max();
+            var winningOptions = voteCounts.Where(kv => kv.Value == maxVoteCount).Select(kv => kv.Key).ToList();
+
+            // Check if there's a tie
+            if (winningOptions.Count == 1)
+            {
+                var winningOption = winningOptions.First();
+                var index = optionEmojis.IndexOf(winningOption);
+                var gameOptionsList = votingCounter.GameOptions.ToList();
+
+                if (index < gameOptionsList.Count)
+                {
+                    var option = gameOptionsList[index];
+                    DiscordLoopInput input = new DiscordLoopInput()
+                    {
+                        GameState = option.Next,
+                        SubscriberId = votingCounter.VoteInstanceId,
+                        TargetChannelId = votingCounter.TargetChannelId
+                    };
+                    await _adventureBotReadService.DiscordLoopPutAsync(priorInstanceId, input);
+                    await initialResponse.ModifyAsync(properties =>
+                    {
+                        properties.Content = $"Voting is complete. The winner is '{option.Description}'";
+                    });
+                }
+            }
+            else
+            {
+                // Handle a tie by resetting the votes and allowing users to vote again
+                voteCounts.Clear();
+                totalVotes = 0;
+
+                await initialResponse.ModifyAsync(properties =>
+                {
+                    properties.Content = "There was a tie. Waiting for a tie breaker vote...";
+                });
+
+                StartVotingTimer();
+            }
+        }
+        else
+        {
+            // Reset the vote counts and total votes if the timer expires without reaching the required votes
+            voteCounts.Clear();
+            totalVotes = 0;
         }
     }
 }
