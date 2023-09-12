@@ -41,7 +41,7 @@ public class Bot
         _client.Ready += ReadyAsync;
         _client.SlashCommandExecuted += SlashCommandHandler;
         _client.ReactionAdded += HandleReactionAsync;
-        
+        _client.ReactionRemoved += HandleReactionRemovedAsync;
         await Task.Delay(-1);
     }
 
@@ -114,8 +114,8 @@ public class Bot
                     }
                     if(!string.IsNullOrEmpty(votingCounter.PriorVote))
                     {
-                        Console.WriteLine($"ReplyAsinc with the current vote");
-                        response = $"Please vote using the following reactions to advance the game";
+                        Console.WriteLine($"Please vote by tapping on one of the following reactions to advance the game");
+                        response = $"Please vote by tapping on one of the following reactions to advance the game";
                     }
                     initialResponse = await command.GetOriginalResponseAsync(); // Get the initial response message
                     priorMessageId = initialResponse.Id;
@@ -180,11 +180,11 @@ public class Bot
     {
         if (_client.GetUser(reaction.UserId).IsBot) return;
 
-        // Check if the reaction is added to the correct message
+        Console.WriteLine("Check if the reaction is added to the correct message");
         if (message.Id == priorMessageId)
         {
             var emojiName = reaction.Emote.Name;
-
+            Console.WriteLine($"received a {emojiName} vote");
             // Check if the emoji is one of the valid options
             if (optionEmojis.Contains(emojiName))
             {
@@ -199,22 +199,23 @@ public class Bot
                 }
 
                 totalVotes++;
-
-                // Start the timer when the first vote is cast
+                Console.WriteLine($"totalVotes: {totalVotes}");
                 if (totalVotes == 1)
                 {
+                    Console.WriteLine("Start the timer when the first vote is cast");
                     StartVotingTimer();
                 }
+                
             }
         }
     }
 
     private void StartVotingTimer()
     {
-        // Start a timer to check if the required votes are reached after a certain period
+        Console.WriteLine($"Start a timer to check if the required votes are reached after a certain period");
         votingTimer = new Timer(_ =>
         {
-            // Check the votes and proceed asynchronously
+            Console.WriteLine($"Check the votes and proceed asynchronously");
             Task.Run(async () =>
             {
                 await CheckVotesAndProceed();
@@ -224,14 +225,13 @@ public class Bot
 
     private async Task CheckVotesAndProceed()
     {
-        // Check if the required number of votes has been reached
+        Console.WriteLine($"Check if the required number of votes has been reached");
         if (totalVotes >= requiredVotes)
         {
-            // Determine the winning options based on the vote counts
+            Console.WriteLine($"Determine the winning options based on the vote counts");
             var maxVoteCount = voteCounts.Values.Max();
             var winningOptions = voteCounts.Where(kv => kv.Value == maxVoteCount).Select(kv => kv.Key).ToList();
-
-            // Check if there's a tie
+            Console.WriteLine($"Check if there's a tie, maxVoteCount={maxVoteCount}, winningOptionsCount={winningOptions.Count}");
             if (winningOptions.Count == 1)
             {
                 var winningOption = winningOptions.First();
@@ -250,13 +250,18 @@ public class Bot
                     await _adventureBotReadService.DiscordLoopPutAsync(priorInstanceId, input);
                     await initialResponse.ModifyAsync(properties =>
                     {
+                        Console.WriteLine($"Voting is complete.");
                         properties.Content = $"Voting is complete. The winner is '{option.Description}'";
                     });
+                    voteCounts.Clear();
+                    totalVotes = 0;
+                    Console.WriteLine($"set priorMessageId = 0 to stop incoming votes until /status is called");
+                    priorMessageId = 0;
                 }
             }
             else
             {
-                // Handle a tie by resetting the votes and allowing users to vote again
+                Console.WriteLine($"Handle a tie by resetting the votes and allowing users to vote again");
                 voteCounts.Clear();
                 totalVotes = 0;
 
@@ -270,9 +275,26 @@ public class Bot
         }
         else
         {
-            // Reset the vote counts and total votes if the timer expires without reaching the required votes
+            Console.WriteLine($"Reset the vote counts and total votes if the timer expires without reaching the required votes");
             voteCounts.Clear();
             totalVotes = 0;
         }
     }
+    
+    private async Task HandleReactionRemovedAsync(Cacheable<IUserMessage, ulong> message, Cacheable<IMessageChannel, ulong> channel, SocketReaction reaction)
+    {
+        if (_client.GetUser(reaction.UserId).IsBot) return;
+
+        if (message.Id == priorMessageId)
+        {
+            var emojiName = reaction.Emote.Name;
+
+            if (optionEmojis.Contains(emojiName) && voteCounts.ContainsKey(emojiName) && voteCounts[emojiName] > 0)
+            {
+                voteCounts[emojiName]--;
+                totalVotes--;
+            }
+        }
+    }
+
 }
