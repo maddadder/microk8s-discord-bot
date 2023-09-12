@@ -18,7 +18,6 @@ public class Bot
     private IServiceProvider _services;
     private readonly AdventureBotReadService _adventureBotReadService;
     private string priorInstanceId = string.Empty;
-    private RestInteractionMessage initialResponse;
     private ulong priorMessageId = 0;
     private DiscordVotingCounter votingCounter = null;
     public Bot(IServiceProvider services)
@@ -117,7 +116,7 @@ public class Bot
                         Console.WriteLine($"Please vote by tapping on one of the following reactions to advance the game");
                         response = $"Please vote by tapping on one of the following reactions to advance the game";
                     }
-                    initialResponse = await command.GetOriginalResponseAsync(); // Get the initial response message
+                    var initialResponse = await command.GetOriginalResponseAsync(); // Get the initial response message
                     priorMessageId = initialResponse.Id;
                     priorInstanceId = instanceid;
                     if(votingCounter.GameOptions.Any())
@@ -137,6 +136,7 @@ public class Bot
                     }
                     else
                     {
+                        Console.WriteLine($"The game is over. Restarting...");
                         await initialResponse.ModifyAsync(properties =>
                         {
                             properties.Content = "The game is over. Restarting...";
@@ -150,6 +150,8 @@ public class Bot
                         await _adventureBotReadService.DiscordLoopPutAsync(priorInstanceId, input);
                         voteCounts.Clear();
                         totalVotes = 0;
+                        Console.WriteLine($"set priorMessageId = 0 to stop incoming votes until /status is called");
+                        priorMessageId = 0;
                     }
                 }
                 catch(Exception e)
@@ -248,11 +250,7 @@ public class Bot
                         TargetChannelId = votingCounter.TargetChannelId
                     };
                     await _adventureBotReadService.DiscordLoopPutAsync(priorInstanceId, input);
-                    await initialResponse.ModifyAsync(properties =>
-                    {
-                        Console.WriteLine($"Voting is complete.");
-                        properties.Content = $"Voting is complete. The winner is '{option.Description}'";
-                    });
+                    Console.WriteLine($"Voting is complete.");
                     voteCounts.Clear();
                     totalVotes = 0;
                     Console.WriteLine($"set priorMessageId = 0 to stop incoming votes until /status is called");
@@ -264,12 +262,6 @@ public class Bot
                 Console.WriteLine($"Handle a tie by resetting the votes and allowing users to vote again");
                 voteCounts.Clear();
                 totalVotes = 0;
-
-                await initialResponse.ModifyAsync(properties =>
-                {
-                    properties.Content = "There was a tie. Waiting for a tie breaker vote...";
-                });
-
                 StartVotingTimer();
             }
         }
@@ -280,7 +272,7 @@ public class Bot
             totalVotes = 0;
         }
     }
-    
+
     private async Task HandleReactionRemovedAsync(Cacheable<IUserMessage, ulong> message, Cacheable<IMessageChannel, ulong> channel, SocketReaction reaction)
     {
         if (_client.GetUser(reaction.UserId).IsBot) return;
@@ -293,6 +285,7 @@ public class Bot
             {
                 voteCounts[emojiName]--;
                 totalVotes--;
+                Console.WriteLine($"totalVotes: {totalVotes}");
             }
         }
     }
