@@ -139,6 +139,7 @@ public class Bot
                                 await initialResponse.AddReactionAsync(new Emoji(emoji));
                             }
                         }
+                        StartVotingTimer();
                     }
                     else
                     {
@@ -156,8 +157,8 @@ public class Bot
                         await _adventureBotReadService.DiscordLoopPutAsync(priorInstanceId, input);
                         voteCounts.Clear();
                         totalVotes = 0;
-                        Console.WriteLine($"set priorMessageId = 0 to stop incoming votes until /status is called");
                         priorMessageId = 0;
+                        Console.WriteLine($"Game started over from begining.");
                     }
                 }
                 catch(Exception e)
@@ -261,6 +262,7 @@ public class Bot
                     totalVotes = 0;
                     Console.WriteLine($"set priorMessageId = 0 to stop incoming votes until /status is called");
                     priorMessageId = 0;
+                    Console.WriteLine($"set votingTimer = null to allow /status to start another vote");
                     votingTimer = null;
                 }
             }
