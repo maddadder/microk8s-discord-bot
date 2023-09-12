@@ -103,6 +103,12 @@ public class Bot
                 var currentVote = "";
                 try
                 {
+                    if(votingTimer != null)
+                    {
+                        Console.WriteLine($"A vote is in progress. The game will advance once the tally is complete.");
+                        await command.RespondAsync("A vote is in progress. The game will advance once the tally is complete.");
+                        return;
+                    }
                     Console.WriteLine($"Calling long running DiscordLoopGetAsync with instanceid '{instanceid}'");
                     await command.RespondAsync("Getting Status...");
                     var response = "Could not get status. An invalid instanceid was provided or the request timed out.";
@@ -176,7 +182,7 @@ public class Bot
     private Dictionary<string, int> voteCounts = new Dictionary<string, int>();
     private int totalVotes = 0;
     private int requiredVotes = 1; // Adjust the required number of votes as needed
-    private Timer votingTimer;
+    private Timer votingTimer = null;
 
     private async Task HandleReactionAsync(Cacheable<IUserMessage, ulong> message, Cacheable<IMessageChannel, ulong> channel, SocketReaction reaction)
     {
@@ -255,6 +261,7 @@ public class Bot
                     totalVotes = 0;
                     Console.WriteLine($"set priorMessageId = 0 to stop incoming votes until /status is called");
                     priorMessageId = 0;
+                    votingTimer = null;
                 }
             }
             else
