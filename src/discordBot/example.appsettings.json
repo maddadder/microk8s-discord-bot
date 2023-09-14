@@ -1,0 +1,14 @@
+{
+  "BotConfig": {
+    "BotToken": "BotConfig"
+  },
+  "enyimMemcached": {
+      "Servers": [
+        {
+          "Address": "memcached-sample-service",
+          "Port": 11211
+        }
+      ],
+      "Transcoder": "MessagePackTranscoder"
+    }
+}
