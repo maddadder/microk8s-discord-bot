@@ -101,18 +101,18 @@ public class Bot
             var priorInstanceId = await _memcachedClient.GetValueOrCreateAsync(
                 "instanceId",
                 int.MaxValue,
-                async () => command.Data.Options?.FirstOrDefault(o => o.Name == "instanceid")?.Value?.ToString() ?? string.Empty);
-            var instanceid = command.Data.Options?.FirstOrDefault(o => o.Name == "instanceid")?.Value?.ToString();
-            if (!string.IsNullOrEmpty(instanceid) || !string.IsNullOrEmpty(priorInstanceId))
+                async () => command.Data.Options?.FirstOrDefault(o => o.Name == "instanceId")?.Value?.ToString() ?? string.Empty);
+            var instanceId = command.Data.Options?.FirstOrDefault(o => o.Name == "instanceId")?.Value?.ToString();
+            if (!string.IsNullOrEmpty(instanceId) || !string.IsNullOrEmpty(priorInstanceId))
             {
-                if(!string.IsNullOrEmpty(instanceid))
+                if(!string.IsNullOrEmpty(instanceId))
                 {
-                    //instanceid wins
-                    await _memcachedClient.SetAsync("instanceId", instanceid, int.MaxValue);
+                    //instanceId wins
+                    await _memcachedClient.SetAsync("instanceId", instanceId, int.MaxValue);
                 }
                 else
                 {
-                    instanceid = priorInstanceId;
+                    instanceId = priorInstanceId;
                 }
                 var currentVote = "";
                 try
@@ -123,10 +123,10 @@ public class Bot
                         await command.RespondAsync("A vote is in progress. The game will advance once the tally is complete.");
                         return;
                     }
-                    _logger.LogInformation($"Calling long running DiscordLoopGetAsync with instanceid '{instanceid}'");
+                    _logger.LogInformation($"Calling long running DiscordLoopGetAsync with instanceId '{instanceId}'");
                     await command.RespondAsync("Getting Status...");
-                    var response = "Could not get status. An invalid instanceid was provided or the request timed out.";
-                    var votingCounter = await _adventureBotReadService.DiscordLoopGetAsync(instanceid);
+                    var response = "Could not get status. An invalid instanceId was provided or the request timed out.";
+                    var votingCounter = await _adventureBotReadService.DiscordLoopGetAsync(instanceId);
                     await _memcachedClient.SetAsync("votingCounter", votingCounter, int.MaxValue);
                     if(votingCounter.VoterList.Any())
                     {
@@ -169,7 +169,7 @@ public class Bot
                             SubscriberId = votingCounter.VoteInstanceId,
                             TargetChannelId = votingCounter.TargetChannelId
                         };
-                        await _adventureBotReadService.DiscordLoopPutAsync(instanceid, input);
+                        await _adventureBotReadService.DiscordLoopPutAsync(instanceId, input);
                         await _memcachedClient.RemoveAsync("voteCounts");
                         await _memcachedClient.RemoveAsync("totalVotes");
                         await _memcachedClient.RemoveAsync("priorMessageId");
@@ -189,8 +189,8 @@ public class Bot
             }
             else
             {
-                _logger.LogWarning("You must provide the instanceid in order to use this command.");
-                await command.RespondAsync("You must provide the instanceid in order to use this command.");
+                _logger.LogWarning("You must provide the instanceId in order to use this command.");
+                await command.RespondAsync("You must provide the instanceId in order to use this command.");
             }
         }
     }
