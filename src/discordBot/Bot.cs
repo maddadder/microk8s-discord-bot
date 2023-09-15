@@ -101,8 +101,8 @@ public class Bot
             var priorInstanceId = await _memcachedClient.GetValueOrCreateAsync(
                 "instanceId",
                 int.MaxValue,
-                async () => command.Data.Options?.FirstOrDefault(o => o.Name == "instanceId")?.Value?.ToString() ?? string.Empty);
-            var instanceId = command.Data.Options?.FirstOrDefault(o => o.Name == "instanceId")?.Value?.ToString();
+                async () => command.Data.Options?.FirstOrDefault(o => o.Name == "instanceid")?.Value?.ToString() ?? string.Empty);
+            var instanceId = command.Data.Options?.FirstOrDefault(o => o.Name == "instanceid")?.Value?.ToString();
             if (!string.IsNullOrEmpty(instanceId) || !string.IsNullOrEmpty(priorInstanceId))
             {
                 if(!string.IsNullOrEmpty(instanceId))
