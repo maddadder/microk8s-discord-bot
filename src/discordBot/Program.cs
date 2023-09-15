@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using discordBot.Logging;
 using discordBot.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,7 +31,13 @@ class Program
             .AddSingleton(httpClient)
             .AddLogging(builder =>
             {
-                builder.AddConsole();
+                builder.AddColorConsoleLogger(configuration =>
+                {
+                    // Replace warning value from appsettings.json of "Cyan"
+                    configuration.LogLevelToColorMap[LogLevel.Warning] = ConsoleColor.DarkCyan;
+                    // Replace warning value from appsettings.json of "Red"
+                    configuration.LogLevelToColorMap[LogLevel.Error] = ConsoleColor.DarkRed;
+                });
             })
             .AddEnyimMemcached()
             .BuildServiceProvider();

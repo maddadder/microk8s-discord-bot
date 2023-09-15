@@ -14,7 +14,7 @@
 ```
 # To Deploy:
 docker-compose build
-docker push 192.168.1.151:32000/microk8s-discord-bot:1.0.155
+docker push 192.168.1.151:32000/microk8s-discord-bot:1.0.164
 helm upgrade microk8s-discord-bot ./chart
 
 # To access

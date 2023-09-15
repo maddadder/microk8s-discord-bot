@@ -7,6 +7,7 @@ using Discord.WebSocket;
 using discordBot.Services;
 using Enyim.Caching;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Read;
 
@@ -20,11 +21,14 @@ public class Bot
     private readonly AdventureBotReadService _adventureBotReadService;
     private DiscordVotingCounter votingCounter = null;
     private readonly IMemcachedClient _memcachedClient;
+    private readonly ILogger _logger;
     public Bot(IServiceProvider services)
     {
         _services = services;
         _adventureBotReadService = services.GetRequiredService<AdventureBotReadService>();
         _memcachedClient = services.GetRequiredService<IMemcachedClient>();
+        var loggerFactory = services.GetRequiredService<ILoggerFactory>();
+        _logger = loggerFactory.CreateLogger<Bot>();
     }
 
     public async Task RunBotAsync(string BotToken)
@@ -53,7 +57,7 @@ public class Bot
 
     private async Task ReadyAsync()
     {
-        Console.WriteLine($"Logged in as {_client.CurrentUser.Username}");
+        _logger.LogInformation($"Logged in as {_client.CurrentUser.Username}");
         // Let's do our global command
         var globalCommand = new SlashCommandBuilder();
         globalCommand.WithName("status");
@@ -72,7 +76,7 @@ public class Bot
             var json = JsonConvert.SerializeObject(exception.Errors, Formatting.Indented);
 
             // You can send this error somewhere or just print it to the console, for this example we're just going to print it.
-            Console.WriteLine(json);
+            _logger.LogInformation(json);
         }
     }
     List<string> optionEmojis = new List<string>
@@ -90,7 +94,7 @@ public class Bot
     };
     private async Task SlashCommandHandler(SocketSlashCommand command)
     {
-        Console.WriteLine($"Received message of type: {command.GetType().Name}");
+        _logger.LogInformation($"Received message of type: {command.GetType().Name}");
         // Check the name of the command
         if (command.CommandName == "status")
         {
@@ -116,11 +120,11 @@ public class Bot
                 {
                     if(votingTimer != null)
                     {
-                        Console.WriteLine($"A vote is in progress. The game will advance once the tally is complete.");
+                        _logger.LogInformation($"A vote is in progress. The game will advance once the tally is complete.");
                         await command.RespondAsync("A vote is in progress. The game will advance once the tally is complete.");
                         return;
                     }
-                    Console.WriteLine($"Calling long running DiscordLoopGetAsync with instanceid '{instanceid}'");
+                    _logger.LogInformation($"Calling long running DiscordLoopGetAsync with instanceid '{instanceid}'");
                     await command.RespondAsync("Getting Status...");
                     var response = "Could not get status. An invalid instanceid was provided or the request timed out.";
                     votingCounter = await _adventureBotReadService.DiscordLoopGetAsync(instanceid);
@@ -130,7 +134,7 @@ public class Bot
                     }
                     if(!string.IsNullOrEmpty(votingCounter.PriorVote))
                     {
-                        Console.WriteLine($"Please vote by tapping on one of the following reactions to advance the game");
+                        _logger.LogInformation($"Please vote by tapping on one of the following reactions to advance the game");
                         response = $"Please vote by tapping on one of the following reactions to advance the game";
                     }
                     var initialResponse = await command.GetOriginalResponseAsync(); // Get the initial response message
@@ -154,7 +158,7 @@ public class Bot
                     }
                     else
                     {
-                        Console.WriteLine($"The game is over. Restarting...");
+                        _logger.LogInformation($"The game is over. Restarting...");
                         await initialResponse.ModifyAsync(properties =>
                         {
                             properties.Content = "The game is over. Restarting...";
@@ -169,13 +173,12 @@ public class Bot
                         await _memcachedClient.RemoveAsync("voteCounts");
                         await _memcachedClient.RemoveAsync("totalVotes");
                         await _memcachedClient.RemoveAsync("priorMessageId");
-                        Console.WriteLine($"Game started over from begining.");
+                        _logger.LogInformation($"Game started over from begining.");
                     }
                 }
                 catch(Exception e)
                 {
-                    Console.WriteLine("DiscordLoopGetAsync failed with the following error:");
-                    Console.WriteLine(e.Message);
+                    _logger.LogError(e.Message);
                     var initialResponse = await command.GetOriginalResponseAsync(); // Get the initial response message
                     await initialResponse.ModifyAsync(properties =>
                     {
@@ -186,6 +189,7 @@ public class Bot
             }
             else
             {
+                _logger.LogWarning("You must provide the instanceid in order to use this command.");
                 await command.RespondAsync("You must provide the instanceid in order to use this command.");
             }
         }
@@ -196,24 +200,32 @@ public class Bot
 
     private async Task HandleReactionAsync(Cacheable<IUserMessage, ulong> message, Cacheable<IMessageChannel, ulong> channel, SocketReaction reaction)
     {
-        if (_client.GetUser(reaction.UserId).IsBot) return;
+        if(reaction == null) {
+            _logger.LogWarning("HandleReactionAsync, reaction == null");
+            return;
+        };
+        var user = _client.GetUser(reaction.UserId);
+        if (user == null) {
+            _logger.LogWarning($"HandleReactionAsync, user == null, reaction.UserId:{reaction.UserId}");
+        }
+        else if (user.IsBot) return;
 
         var priorMessageObj = await _memcachedClient.GetAsync<ulong>("priorMessageId");
         if(!priorMessageObj.HasValue)
         {
-            Console.WriteLine("We lost the priorMessageId");
+            _logger.LogWarning("We lost the priorMessageId");
             return;
         }
         Dictionary<string, int> voteCounts = await _memcachedClient.GetValueOrCreateAsync(
                     "voteCounts",
                     int.MaxValue,
                     async () => new Dictionary<string, int>());
-        Console.WriteLine("Check if the reaction is added to the correct message");
+        _logger.LogInformation("Check if the reaction is added to the correct message");
         var priorMessageId = priorMessageObj.Value;
         if (message.Id == priorMessageId)
         {
             var emojiName = reaction.Emote.Name;
-            Console.WriteLine($"received a {emojiName} vote");
+            _logger.LogInformation($"received a {emojiName} vote");
             // Check if the emoji is one of the valid options
             if (optionEmojis.Contains(emojiName))
             {
@@ -234,10 +246,10 @@ public class Bot
 
                 totalVotes++;
                 await _memcachedClient.SetAsync("totalVotes", totalVotes, int.MaxValue);
-                Console.WriteLine($"totalVotes: {totalVotes}");
-                if (totalVotes == 1)
+                _logger.LogInformation($"totalVotes: {totalVotes}");
+                if (totalVotes == 1 || votingTimer == null)
                 {
-                    Console.WriteLine("Start the timer when the first vote is cast");
+                    _logger.LogInformation("Start the timer when the first vote is cast");
                     StartVotingTimer();
                 }
             }
@@ -246,10 +258,10 @@ public class Bot
 
     private void StartVotingTimer()
     {
-        Console.WriteLine($"Start a timer to check if the required votes are reached after a certain period");
+        _logger.LogInformation($"Start a timer to check if the required votes are reached after a certain period");
         votingTimer = new Timer(_ =>
         {
-            Console.WriteLine($"Check the votes and proceed asynchronously");
+            _logger.LogInformation($"Check the votes and proceed asynchronously");
             Task.Run(async () =>
             {
                 await CheckVotesAndProceed();
@@ -259,27 +271,27 @@ public class Bot
 
     private async Task CheckVotesAndProceed()
     {
-        Console.WriteLine($"Check if the required number of votes has been reached");
+        _logger.LogInformation($"Check if the required number of votes has been reached");
         var voteCountsObj = await _memcachedClient.GetAsync<Dictionary<string, int>>("voteCounts");
         if(!voteCountsObj.HasValue)
         {
-            Console.WriteLine("We lost the voteCounts");
+            _logger.LogWarning("We lost the voteCounts");
             return;
         }
         var voteCounts = voteCountsObj.Value;
         var totalVotesObj = await _memcachedClient.GetAsync<int>("totalVotes");
         if(!totalVotesObj.HasValue)
         {
-            Console.WriteLine("We lost the totalVotes");
+            _logger.LogWarning("We lost the totalVotes");
             return;
         }
         var totalVotes = totalVotesObj.Value;
         if (totalVotes >= requiredVotes)
         {
-            Console.WriteLine($"Determine the winning options based on the vote counts");
+            _logger.LogInformation($"Determine the winning options based on the vote counts");
             var maxVoteCount = voteCounts.Values.Max();
             var winningOptions = voteCounts.Where(kv => kv.Value == maxVoteCount).Select(kv => kv.Key).ToList();
-            Console.WriteLine($"Check if there's a tie, maxVoteCount={maxVoteCount}, winningOptionsCount={winningOptions.Count}");
+            _logger.LogInformation($"Check if there's a tie, maxVoteCount={maxVoteCount}, winningOptionsCount={winningOptions.Count}");
             if (winningOptions.Count == 1)
             {
                 var winningOption = winningOptions.First();
@@ -299,19 +311,19 @@ public class Bot
                     if(!string.IsNullOrEmpty(instanceId))
                     {
                         await _adventureBotReadService.DiscordLoopPutAsync(instanceId, input);
-                        Console.WriteLine($"Voting is complete.");
+                        _logger.LogInformation($"Voting is complete.");
                         await _memcachedClient.RemoveAsync("voteCounts");
                         await _memcachedClient.RemoveAsync("totalVotes");
-                        Console.WriteLine($"set priorMessageId = 0 to stop incoming votes until /status is called");
+                        _logger.LogInformation($"set priorMessageId = 0 to stop incoming votes until /status is called");
                         await _memcachedClient.RemoveAsync("priorMessageId");
-                        Console.WriteLine($"set votingTimer = null to allow /status to start another vote");
+                        _logger.LogInformation($"set votingTimer = null to allow /status to start another vote");
                         votingTimer = null;
                     }
                 }
             }
             else
             {
-                Console.WriteLine($"Handle a tie by resetting the votes and allowing users to vote again");
+                _logger.LogInformation($"Handle a tie by resetting the votes and allowing users to vote again");
                 await _memcachedClient.RemoveAsync("voteCounts");
                 await _memcachedClient.RemoveAsync("totalVotes");
                 StartVotingTimer();
@@ -319,7 +331,7 @@ public class Bot
         }
         else
         {
-            Console.WriteLine($"Reset the vote counts and total votes if the timer expires without reaching the required votes");
+            _logger.LogInformation($"Reset the vote counts and total votes if the timer expires without reaching the required votes");
             await _memcachedClient.RemoveAsync("voteCounts");
             await _memcachedClient.RemoveAsync("totalVotes");
         }
@@ -327,33 +339,41 @@ public class Bot
 
     private async Task HandleReactionRemovedAsync(Cacheable<IUserMessage, ulong> message, Cacheable<IMessageChannel, ulong> channel, SocketReaction reaction)
     {
-        if (_client.GetUser(reaction.UserId).IsBot) return;
+        if(reaction == null) {
+            _logger.LogWarning("HandleReactionRemovedAsync, reaction == null");
+            return;
+        };
+        var user = _client.GetUser(reaction.UserId);
+        if (user == null) {
+            _logger.LogWarning($"HandleReactionRemovedAsync, user == null, reaction.UserId:{reaction.UserId}");
+        }
+        else if (user.IsBot) return;
 
         if(!(await _memcachedClient.GetAsync<ulong>("priorMessageId")).HasValue)
         {
-            Console.WriteLine("We lost the priorMessageId");
+            _logger.LogWarning("We lost the priorMessageId");
             return;
         }
         var voteCountsObj = await _memcachedClient.GetAsync<Dictionary<string, int>>("voteCounts");
         if(!voteCountsObj.HasValue)
         {
-            Console.WriteLine("We lost the voteCounts");
+            _logger.LogWarning("We lost the voteCounts");
             return;
         }
         var voteCounts = voteCountsObj.Value;
         var totalVotesObj = await _memcachedClient.GetAsync<int>("totalVotes");
         if(!totalVotesObj.HasValue)
         {
-            Console.WriteLine("We lost the totalVotes");
+            _logger.LogWarning("We lost the totalVotes");
             return;
         }
         var totalVotes = totalVotesObj.Value;
 
-        Console.WriteLine("Check if the reaction is added to the correct message");
+        _logger.LogInformation("Check if the reaction is added to the correct message");
         var priorMessageIdObj = await _memcachedClient.GetAsync<ulong>("priorMessageId");
         if(!priorMessageIdObj.HasValue)
         {
-            Console.WriteLine("We lost the priorMessageIdObj");
+            _logger.LogWarning("We lost the priorMessageIdObj");
             return;
         }
         var priorMessageId = priorMessageIdObj.Value;
@@ -367,7 +387,7 @@ public class Bot
                 await _memcachedClient.SetAsync("voteCounts", voteCounts, int.MaxValue);
                 totalVotes--;
                 await _memcachedClient.SetAsync("totalVotes", totalVotes, int.MaxValue);
-                Console.WriteLine($"totalVotes: {totalVotes}");
+                _logger.LogInformation($"totalVotes: {totalVotes}");
             }
         }
     }

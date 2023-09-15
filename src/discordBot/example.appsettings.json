@@ -10,5 +10,14 @@
         }
       ],
       "Transcoder": "MessagePackTranscoder"
+  },
+  "Logging": {
+    "ColorConsole": {
+        "LogLevelToColorMap": {
+            "Information": "DarkGreen",
+            "Warning": "Cyan",
+            "Error": "Red"
+        }
     }
+  }
 }
