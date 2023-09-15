@@ -2,7 +2,7 @@ version: '2'
 
 services:
     microk8s-discord-bot:
-        image: 192.168.1.151:32000/microk8s-discord-bot:1.0.164
+        image: 192.168.1.151:32000/microk8s-discord-bot:1.0.166
         build:
             context: .
             dockerfile: ./Dockerfile
